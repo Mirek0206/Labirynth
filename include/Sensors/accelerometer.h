@@ -5,6 +5,7 @@
 /* Includes                      */
 /*===============================*/
 
+#include "Utils/calmanFilter.h"
 
 /*===============================*/
 /* Pins connfiguration           */
@@ -14,22 +15,26 @@
 #define ACC_Y_PIN A1
 #define ACC_Z_PIN A0
 
-#define ACC_OFFSET_X 344
-#define ACC_OFFSET_Y 344
-#define ACC_OFFSET_Z 281
+#define ACC_SCALE 0.0033F // Współczynnik przeliczeniowy w g/LSB
+#define G_TO_MSS 9.81F    // Przyspieszenie ziemskie w m/s^2
 
-#define ACC_SCALE 0.0033F; // Współczynnik przeliczeniowy w g/LSB
-#define G_TO_MSS 9.81F;    // Przyspieszenie ziemskie w m/s^2
+#define INIT_OFFSET_CYCLES 50U
 
 /*===============================*/
 /* Types definitions             */
 /*===============================*/
 
+typedef struct accelerometerAxisData_tag {
+    float offset_f32;
+    float value_f32;
+    calmanFilter_t calmanData;
+}accelerometerAxisData_t;
+
 typedef struct accelerometerData_tag
 {
-    float x_f32;
-    float y_f32;
-    float z_f32;
+    accelerometerAxisData_t x_axis;
+    accelerometerAxisData_t y_axis;
+    accelerometerAxisData_t z_axis;
 }accelerometerData_t;
 
 /*===============================*/

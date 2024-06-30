@@ -24,6 +24,7 @@ void setup()
 {
   Serial.begin(9600);
 
+  accelerometerInit();
   ultrasonicSensorInit();
 
   /* motor shield */
@@ -36,41 +37,50 @@ void loop()
   accelerometerCycle();
   ultrasonicSensorCycle();
 
+  // Serial.print( "Left: " );
+  // Serial.print( ultrasonicSensorData.left_f32 );
+  // Serial.print( " cm | Front: ");
+  // Serial.print( ultrasonicSensorData.front_f32 );
+  // Serial.print( " cm | Right: " );
+  // Serial.print( ultrasonicSensorData.right_f32 );
+  // Serial.print( " cm | " );
+  Serial.print( accelerometerData.x_axis.value_f32 );
+  Serial.print( " | " );
+  Serial.print( accelerometerData.y_axis.value_f32 );
+  Serial.print( " | " );
+  Serial.print( accelerometerData.z_axis.value_f32 );
+  Serial.print( " | " );
+  Serial.print( accelerometerData.x_axis.offset_f32 );
+  Serial.print( " | " );
+  Serial.print( accelerometerData.y_axis.offset_f32 );
+  Serial.print( " | " );
+  Serial.print( accelerometerData.z_axis.offset_f32 );
+  Serial.print( " | " );
+
+
 
   driveForward();
-
-
-  Serial.print( "Left: " );
-  Serial.print( ultrasonicSensorData.left_f32 );
-  Serial.print( " cm | Front: ");
-  Serial.print( ultrasonicSensorData.front_f32 );
-  Serial.print( " cm | Right: " );
-  Serial.print( ultrasonicSensorData.right_f32 );
-  Serial.println( " cm" );
 }
 
 void driveForward( void )
 {
-  static float yAxisAcc_f32 = 0.0F;
   int16_t leftMotorSpeed_s16 = MOTOR_DEFAULT_SPEED;
   int16_t rightMotorSpeed_s16 = MOTOR_DEFAULT_SPEED;
 
-  yAxisAcc_f32 = ( yAxisAcc_f32 * 0.75F ) + (accelerometerData.y_f32 * 0.25); 
 
-  if ( yAxisAcc_f32 > -0.48F )
+  if ( accelerometerData.y_axis.value_f32 > 0.06F )
   {
-    leftMotorSpeed_s16 = MOTOR_DEFAULT_SPEED + 15;
+    leftMotorSpeed_s16 += 15;
   }
-  else if ( yAxisAcc_f32 < -0.57F )
+  else if ( accelerometerData.y_axis.value_f32 < -0.06F )
   {
-    rightMotorSpeed_s16 = MOTOR_DEFAULT_SPEED + 15;
+    rightMotorSpeed_s16 += 15;
   }
 
-  Serial.print(yAxisAcc_f32);
-  Serial.print(" | Left: ");
+  Serial.print( " | Speed: " );
   Serial.print( leftMotorSpeed_s16 );
-  Serial.print(" | Right: ");
-  Serial.print( rightMotorSpeed_s16 );
+  Serial.print( " | " );
+  Serial.println( rightMotorSpeed_s16 );
 
   motors.setM1Speed( rightMotorSpeed_s16 ); // prawy
   motors.setM2Speed( leftMotorSpeed_s16 ); // lewy
