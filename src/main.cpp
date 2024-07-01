@@ -97,8 +97,9 @@ void followLeftWall ( void )
   int16_t leftMotorSpeed_s16 = MOTOR_DEFAULT_SPEED;
   int16_t rightMotorSpeed_s16 = MOTOR_DEFAULT_SPEED;
   static uint8_t wallDetected = 0U;
+  static uint8_t correction = 0U;
   static float distance = 0.0F;
-  const float threshold = 0.5F;
+  const float threshold = 1.0F;
 
   if (   ultrasonicSensorData.front_f32 < 15.0F
       || ultrasonicSensorData.left_f32 > 50.0F )
@@ -111,11 +112,28 @@ void followLeftWall ( void )
   {
     if ( ( ultrasonicSensorData.left_f32 - distance ) > threshold )
     {
-      leftMotorSpeed_s16 -= 25;
+      leftMotorSpeed_s16 -= 8.333 * ( ultrasonicSensorData.left_f32 - distance ) + 16.667F;
+      correction |= 0x01;
     }
     else if ( ( distance - ultrasonicSensorData.left_f32 ) > threshold )
     {
-      rightMotorSpeed_s16 -= 25;
+      rightMotorSpeed_s16 -= 8.333 * ( distance - ultrasonicSensorData.left_f32 ) + 16.667F;
+      correction |= 0x01;
+    }
+    else if (correction)
+    {
+      if ( ( ultrasonicSensorData.left_f32 - distance ) > ( threshold * 2.0F ))
+      {
+        rightMotorSpeed_s16 -= 50;
+      }
+      else if ( ( distance - ultrasonicSensorData.left_f32 ) > ( threshold * 2.0F ))
+      {
+        leftMotorSpeed_s16 -= 50;
+      }
+      else
+      {
+        correction &= 0x00;
+      }
     }
   }
   else
