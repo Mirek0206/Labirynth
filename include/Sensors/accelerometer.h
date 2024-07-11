@@ -27,6 +27,7 @@
 typedef struct accelerometerAxisData_tag {
     float offset_f32;
     float value_f32;
+    float velocity_f32;
     calmanFilter_t calmanData;
 }accelerometerAxisData_t;
 
@@ -42,6 +43,7 @@ typedef struct accelerometerData_tag
 /*===============================*/
 
 extern accelerometerData_t accelerometerData;
+extern unsigned long cycleTime_u64;
 
 /*===============================*/
 /* Global functions declarations */

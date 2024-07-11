@@ -6,8 +6,11 @@
 #include "Sensors/ultrasonicSensor.h"
 #include "Motors/motors.h"
 
+unsigned long cycleTime_u64;
+
 void setup() 
 {
+  cycleTime_u64 = millis();
   Serial.begin(9600);
 
   accelerometerInit();
@@ -17,6 +20,9 @@ void setup()
 
 void loop() 
 {
+  cycleTime_u64 = millis() - cycleTime_u64;
+
+  // Main functions
   accelerometerCycle();
   ultrasonicSensorCycle();
   motorsCycle();

@@ -14,6 +14,8 @@
  
 static void drivingForward( void );
 
+static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 );
+
 /*===============================*/
 /* Global data definition        */
 /*===============================*/
@@ -62,7 +64,7 @@ void motorsCycle( void )
     motors.setM2Speed( leftMotorSpeed_s16 ); // lewy
 }
 
-static void followWall ( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 )
+static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 )
 {
   static uint8_t finishCounter_u8;  
   static boolean wallDetected_b;

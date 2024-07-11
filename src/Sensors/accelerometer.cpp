@@ -15,6 +15,7 @@
 /*===============================*/
 
 accelerometerData_t accelerometerData;
+extern unsigned long cycleTime_u64;
 
 /*===============================*/
 /* Functions definitions         */
@@ -37,7 +38,14 @@ void accelerometerInit( void )
 
 void accelerometerCycle( void )
 {
-    float raw_axis = ( ( float )analogRead( ACC_X_PIN ) - accelerometerData.x_axis.offset_f32 ) * ACC_SCALE * G_TO_MSS;
+    float raw_axis;
+    float deltaTime_f32 = (float)cycleTime_u64 / 1000.0F;
+
+    accelerometerData.x_axis.velocity_f32 += accelerometerData.x_axis.value_f32 * deltaTime_f32;
+    accelerometerData.y_axis.velocity_f32 += accelerometerData.y_axis.value_f32 * deltaTime_f32;
+    accelerometerData.z_axis.velocity_f32 += accelerometerData.z_axis.value_f32 * deltaTime_f32;
+
+    raw_axis = ( ( float )analogRead( ACC_X_PIN ) - accelerometerData.x_axis.offset_f32 ) * ACC_SCALE * G_TO_MSS;
     accelerometerData.x_axis.value_f32 = calmanFilterUpdate( &(accelerometerData.x_axis.calmanData), raw_axis);
 
     raw_axis = ( ( float )analogRead( ACC_Y_PIN ) - accelerometerData.y_axis.offset_f32 ) * ACC_SCALE * G_TO_MSS;
