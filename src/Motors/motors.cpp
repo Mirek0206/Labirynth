@@ -12,6 +12,8 @@
 /* Local functions declarations  */
 /*===============================*/
  
+static void drivingDistance( const float distance_f32 );
+
 static void drivingForward( void );
 
 static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 );
@@ -42,10 +44,9 @@ void motorsInit( void )
 
 void motorsCycle( void )
 {
-    prevJob_t = job_t;
-    job_t = ( ultrasonicSensorData.front_f32 <= DIST_SIDE_MIN ) ? AWAIT : FOLLOW_LEFT_WALL ;
+    motorsJob_t currentCycleJob_t = job_t;
 
-    switch (job_t)
+    switch (currentCycleJob_t)
     {
     case FOLLOW_LEFT_WALL:
         followWall( ultrasonicSensorData.left_f32, &rightMotorSpeed_s16, &leftMotorSpeed_s16 );
@@ -60,6 +61,7 @@ void motorsCycle( void )
         break;
     }
 
+    prevJob_t = currentCycleJob_t;
     motors.setM1Speed( rightMotorSpeed_s16 ); // prawy
     motors.setM2Speed( leftMotorSpeed_s16 ); // lewy
 }
@@ -111,10 +113,36 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   }
   else
   {
-    // TO DO: driving straight for next 20 cm
+    drivingDistance(20.0F);
   }
 
   prevJob_t = job_t;
+}
+
+static void drivingDistance( const float distance_f32 )
+{
+  static float prevDistance_f32;
+  static float remainingDistance_f32;
+
+  if ( prevDistance_f32 != distance_f32 )
+  {
+    remainingDistance_f32 = distance_f32;
+  }
+  else
+  {
+    remainingDistance_f32 -= accelerometerData.x_axis.velocity_f32 * ( cycleTime_u64 / 1000.0F );
+    
+    if ( remainingDistance_f32 <= 0.0F )
+    {
+      job_t = AWAIT;
+    }
+    else 
+    {
+      drivingForward();
+    }
+  }
+
+  prevDistance_f32 = distance_f32;
 }
 
 static void drivingForward( void )
