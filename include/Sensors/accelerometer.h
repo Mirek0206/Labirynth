@@ -19,6 +19,7 @@
 #define G_TO_MSS 9.81F    // Przyspieszenie ziemskie w m/s^2
 
 #define INIT_OFFSET_CYCLES 50U
+#define ZERO_THRESHOLD 0.2F
 
 /*===============================*/
 /* Types definitions             */

@@ -16,6 +16,8 @@ static void drivingDistance( const float distance_f32 );
 
 static void drivingForward( void );
 
+static void turnLeft( void );
+
 static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 );
 
 /*===============================*/
@@ -46,13 +48,30 @@ void motorsCycle( void )
 {
     motorsJob_t currentCycleJob_t = job_t;
 
+    // if ( ultrasonicSensorData.front_f32 < 5.5F)
+    // {
+    //   job_t = AWAIT;
+    // }
+    
+    if (job_t == AWAIT)
+    {
+      if ( ultrasonicSensorData.left_f32 >= 20.0F )
+      {
+        job_t = TURN_LEFT;
+      }
+    }
+    
+
     switch (currentCycleJob_t)
     {
     case FOLLOW_LEFT_WALL:
-        followWall( ultrasonicSensorData.left_f32, &rightMotorSpeed_s16, &leftMotorSpeed_s16 );
+        followWall( ultrasonicSensorData.left_f32, &leftMotorSpeed_s16, &rightMotorSpeed_s16 );
         break;
     case FOLLOW_RIGHT_WALL:
-        followWall( ultrasonicSensorData.left_f32, &leftMotorSpeed_s16, &rightMotorSpeed_s16 );
+        followWall( ultrasonicSensorData.left_f32, &rightMotorSpeed_s16, &leftMotorSpeed_s16 );
+        break;
+    case TURN_LEFT:
+        turnLeft();
         break;
     case AWAIT:
     default:
@@ -86,7 +105,7 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   }
   // If wall have been detected and in current cycle wall dissapeared - start counting final counter
   else if (   ( true == wallDetected_b ) 
-           && ( wallDistance_f32 <= DIST_SIDE_MAX )   )
+           && ( wallDistance_f32 > DIST_SIDE_MAX )   )
   {
     finishCounter_u8++;
   }
@@ -96,24 +115,27 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   {
     drivingForward();
   }
-  else if ( finishCounter_u8 < 5  )
+  else if ( finishCounter_u8 < 3U  )
   {
     distanceDiff_f32 = wallDistance_f32 - DIST_SIDE_MIN;
     
     if ( distanceDiff_f32 > DIST_SIDE_OFFSET )
     {
-      *firstMotorSpeed_s16 = MOTOR_SPEED_DEFAULT - (int16_t)( distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
-      *secondMotorSpeed_s16 = MOTOR_SPEED_DEFAULT;
+      *firstMotorSpeed_s16 = MOTOR_SPEED_MAX - (int16_t)( distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
+      *secondMotorSpeed_s16 = MOTOR_SPEED_MAX;
     }
     else if ( -distanceDiff_f32 > DIST_SIDE_OFFSET )
     {
-      *firstMotorSpeed_s16 = MOTOR_SPEED_DEFAULT;
-      *secondMotorSpeed_s16 = MOTOR_SPEED_DEFAULT - (int16_t)( distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
+      *firstMotorSpeed_s16 = MOTOR_SPEED_MAX;
+      *secondMotorSpeed_s16 = MOTOR_SPEED_MAX - (int16_t)( -distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
     }
+
+    *firstMotorSpeed_s16 = max( MOTOR_SPEED_MIN, min( MOTOR_SPEED_MAX , *firstMotorSpeed_s16) );
+    *secondMotorSpeed_s16 = max( MOTOR_SPEED_MIN, min( MOTOR_SPEED_MAX , *secondMotorSpeed_s16) );
   }
   else
   {
-    drivingDistance(20.0F);
+    drivingDistance(15.0F);
   }
 
   prevJob_t = job_t;
@@ -121,20 +143,26 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
 
 static void drivingDistance( const float distance_f32 )
 {
-  static float prevDistance_f32;
+  static float prevDistance_f32 = 0.0F;
+  static float prevFrontDist_f32;
   static float remainingDistance_f32;
+
+  Serial.println(remainingDistance_f32);
 
   if ( prevDistance_f32 != distance_f32 )
   {
     remainingDistance_f32 = distance_f32;
+    prevFrontDist_f32 = ultrasonicSensorData.front_f32;
   }
   else
   {
-    remainingDistance_f32 -= accelerometerData.x_axis.velocity_f32 * ( cycleTime_u64 / 1000.0F );
+    remainingDistance_f32 -= prevFrontDist_f32 - ultrasonicSensorData.front_f32;
     
     if ( remainingDistance_f32 <= 0.0F )
     {
       job_t = AWAIT;
+      prevDistance_f32 = 0.0F;
+      remainingDistance_f32 = distance_f32;
     }
     else 
     {
@@ -143,10 +171,36 @@ static void drivingDistance( const float distance_f32 )
   }
 
   prevDistance_f32 = distance_f32;
+  prevFrontDist_f32 = ultrasonicSensorData.front_f32;
 }
 
 static void drivingForward( void )
 {
-  leftMotorSpeed_s16 = MOTOR_SPEED_DEFAULT;
-  rightMotorSpeed_s16 = MOTOR_SPEED_DEFAULT;
+  leftMotorSpeed_s16 = MOTOR_SPEED_MAX;
+  rightMotorSpeed_s16 = MOTOR_SPEED_MAX - 5;
+}
+
+static void turnLeft( void )
+{
+  static int duration; 
+
+  if (prevJob_t != job_t)
+  {
+    duration = 1000;
+  }
+  else
+  {
+    if (duration > 0)
+    {
+      duration -= cycleTime_u64;
+      leftMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
+      rightMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
+    }
+    else
+    {
+      job_t = FOLLOW_LEFT_WALL;
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+    }
+  }
 }

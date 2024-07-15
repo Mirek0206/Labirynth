@@ -21,15 +21,16 @@
 /* Constant values               */
 /*===============================*/
 
-#define MOTOR_SPEED_DEFAULT 100
+#define MOTOR_SPEED_MAX 100
+#define MOTOR_SPEED_MIN 25
 #define MOTOR_SPEED_STOPPED 0
 
 #define DIST_SIDE_MIN 7.0F
 #define DIST_SIDE_MAX 20.0F
 #define DIST_SIDE_OFFSET 0.5F
 
-#define SPEED_EQUATION_A 66.667F
-#define SPEED_EQUATION_B 33.334F
+#define SPEED_EQUATION_A 15.0F
+#define SPEED_EQUATION_B 0.0F
 
 /*===============================*/
 /* Types definitions             */
@@ -47,6 +48,8 @@ typedef enum motorsJob_tag
 /*===============================*/
 /* Global data                   */
 /*===============================*/
+
+extern motorsJob_t job_t;
 
 /*===============================*/
 /* Global functions declarations */
