@@ -48,10 +48,10 @@ void motorsCycle( void )
 {
     motorsJob_t currentCycleJob_t = job_t;
 
-    // if ( ultrasonicSensorData.front_f32 < 5.5F)
-    // {
-    //   job_t = AWAIT;
-    // }
+    if ( ultrasonicSensorData.front_f32 < 5.0F)
+    {
+      job_t = AWAIT;
+    }
     
     if (job_t == AWAIT)
     {
@@ -147,12 +147,9 @@ static void drivingDistance( const float distance_f32 )
   static float prevFrontDist_f32;
   static float remainingDistance_f32;
 
-  Serial.println(remainingDistance_f32);
-
   if ( prevDistance_f32 != distance_f32 )
   {
     remainingDistance_f32 = distance_f32;
-    prevFrontDist_f32 = ultrasonicSensorData.front_f32;
   }
   else
   {
@@ -162,7 +159,6 @@ static void drivingDistance( const float distance_f32 )
     {
       job_t = AWAIT;
       prevDistance_f32 = 0.0F;
-      remainingDistance_f32 = distance_f32;
     }
     else 
     {
