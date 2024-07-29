@@ -18,6 +18,8 @@ static void drivingForward( void );
 
 static void turnLeft( void );
 
+static void turnRight( void );
+
 static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 );
 
 /*===============================*/
@@ -42,47 +44,70 @@ void motorsInit( void )
 {
     pinMode( MOTOR_SHIELD_MODE, OUTPUT );
     digitalWrite( MOTOR_SHIELD_MODE, HIGH );
+
+    job_t = FOLLOW_LEFT_WALL;
 }
 
 void motorsCycle( void )
 {
-    motorsJob_t currentCycleJob_t = job_t;
+  motorsJob_t currentCycleJob_t = job_t;
 
-    if ( ultrasonicSensorData.front_f32 < 5.0F)
+  // Stop the algorith if w are exit the maze
+  if (   ( ultrasonicSensorData.front_f32 > DIST_FINISH )
+      && ( ultrasonicSensorData.left_f32 > DIST_FINISH )
+      && ( ultrasonicSensorData.right_f32 > DIST_FINISH )   )
+  {
+    while (1)
     {
-      job_t = AWAIT;
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
     }
+  }
+  // Otherwise,if we are finished the job or we are unable to drive forward - change the job.
+  else if (   (   ( ultrasonicSensorData.front_f32 < DIST_FRONT_COLLISION)  
+               && ( FOLLOW_LEFT_WALL == job_t )   )
+           || ( AWAIT == job_t )   )
+  {
+    if ( ultrasonicSensorData.left_f32 >= DIST_REQ_FOR_MOVE )
+    {
+      job_t = TURN_LEFT;
+    }
+    else if ( ultrasonicSensorData.front_f32 >= DIST_FRONT_COLLISION )
+    {
+      job_t = FOLLOW_LEFT_WALL;
+    }
+    else 
+    {
+      job_t = TURN_RIGHT;
+    }
+  }
     
-    if (job_t == AWAIT)
-    {
-      if ( ultrasonicSensorData.left_f32 >= 20.0F )
-      {
-        job_t = TURN_LEFT;
-      }
-    }
-    
+  // Call particular function which is responsible for current job.
+  switch (currentCycleJob_t)
+  {
+  case FOLLOW_LEFT_WALL:
+      followWall( ultrasonicSensorData.left_f32, &leftMotorSpeed_s16, &rightMotorSpeed_s16 );
+      break;
+  case FOLLOW_RIGHT_WALL:
+      followWall( ultrasonicSensorData.left_f32, &rightMotorSpeed_s16, &leftMotorSpeed_s16 );
+      break;
+  case TURN_LEFT:
+      turnLeft();
+      break;
+  case TURN_RIGHT:
+      turnRight();
+      break;
+  case AWAIT:
+  default:
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      break;
+  }
 
-    switch (currentCycleJob_t)
-    {
-    case FOLLOW_LEFT_WALL:
-        followWall( ultrasonicSensorData.left_f32, &leftMotorSpeed_s16, &rightMotorSpeed_s16 );
-        break;
-    case FOLLOW_RIGHT_WALL:
-        followWall( ultrasonicSensorData.left_f32, &rightMotorSpeed_s16, &leftMotorSpeed_s16 );
-        break;
-    case TURN_LEFT:
-        turnLeft();
-        break;
-    case AWAIT:
-    default:
-        rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-        leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-        break;
-    }
-
-    prevJob_t = currentCycleJob_t;
-    motors.setM1Speed( rightMotorSpeed_s16 ); // prawy
-    motors.setM2Speed( leftMotorSpeed_s16 ); // lewy
+  // Save the current job and set motors speed
+  prevJob_t = currentCycleJob_t;
+  motors.setM1Speed( rightMotorSpeed_s16 ); // prawy
+  motors.setM2Speed( leftMotorSpeed_s16 ); // lewy
 }
 
 static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 )
@@ -104,8 +129,7 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
     finishCounter_u8 = 0U;
   }
   // If wall have been detected and in current cycle wall dissapeared - start counting final counter
-  else if (   ( true == wallDetected_b ) 
-           && ( wallDistance_f32 > DIST_SIDE_MAX )   )
+  else if ( true == wallDetected_b )
   {
     finishCounter_u8++;
   }
@@ -135,10 +159,8 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   }
   else
   {
-    drivingDistance(15.0F);
+    drivingDistance( DIST_AFTER_WALL_FOLLOWING );
   }
-
-  prevJob_t = job_t;
 }
 
 static void drivingDistance( const float distance_f32 )
@@ -178,19 +200,44 @@ static void drivingForward( void )
 
 static void turnLeft( void )
 {
-  static int duration; 
+  static int leftDuration_s32; 
 
   if (prevJob_t != job_t)
   {
-    duration = 1000;
+    leftDuration_s32 = 1000;
   }
   else
   {
-    if (duration > 0)
+    if (leftDuration_s32 > 0)
     {
-      duration -= cycleTime_u64;
+      leftDuration_s32 -= cycleTime_u64;
       leftMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
       rightMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
+    }
+    else
+    {
+      job_t = FOLLOW_LEFT_WALL;
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+    }
+  }
+}
+
+static void turnRight( void )
+{
+  static int rightDuration_s32; 
+
+  if (prevJob_t != job_t)
+  {
+    rightDuration_s32 = 1000;
+  }
+  else
+  {
+    if (rightDuration_s32 > 0)
+    {
+      rightDuration_s32 -= cycleTime_u64;
+      leftMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
+      rightMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
     }
     else
     {

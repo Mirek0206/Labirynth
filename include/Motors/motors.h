@@ -28,8 +28,12 @@
 #define DIST_SIDE_MIN 7.0F
 #define DIST_SIDE_MAX 20.0F
 #define DIST_SIDE_OFFSET 0.5F
+#define DIST_FRONT_COLLISION 6.0F
+#define DIST_REQ_FOR_MOVE 25.0F
+#define DIST_FINISH 100.0F
+#define DIST_AFTER_WALL_FOLLOWING 15.0F
 
-#define SPEED_EQUATION_A 15.0F
+#define SPEED_EQUATION_A 20.0F
 #define SPEED_EQUATION_B 0.0F
 
 /*===============================*/
@@ -42,7 +46,7 @@ typedef enum motorsJob_tag
     FOLLOW_LEFT_WALL,
     FOLLOW_RIGHT_WALL,
     TURN_LEFT,
-    TUNR_RIGHT
+    TURN_RIGHT
 }motorsJob_t;
 
 /*===============================*/
