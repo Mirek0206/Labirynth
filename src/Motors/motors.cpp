@@ -2,11 +2,12 @@
 /* Includes                      */
 /*===============================*/
 
-#include <Arduino.h>
+#include <stdint.h>
 #include <DRV8835MotorShield.h>
 #include "Motors/motors.h"
 #include "Sensors/accelerometer.h"
 #include "Sensors/ultrasonicSensor.h"
+#include "Utils/cycle.h"
 
 /*===============================*/
 /* Local functions declarations  */
@@ -31,8 +32,10 @@ DRV8835MotorShield motors( MOTOR_SHIELD_M1_DIR,
                            MOTOR_SHIELD_M2_DIR, 
                            MOTOR_SHIELD_M2_PWM );
 
-int16_t leftMotorSpeed_s16;
-int16_t rightMotorSpeed_s16;
+uint64_t cycleNumber_u64;    /* Number of the current cycle */
+uint8_t cycleTime_u8;      /* Previous cycle duration [ms] */
+int16_t leftMotorSpeed_s16;  /* Speed for left motor */
+int16_t rightMotorSpeed_s16; /* Speed for right motor */
 motorsJob_t job_t;
 motorsJob_t prevJob_t;
 
@@ -51,17 +54,23 @@ void motorsInit( void )
 void motorsCycle( void )
 {
   motorsJob_t currentCycleJob_t = job_t;
+  Serial.print(currentCycleJob_t);
+  Serial.print(" ");
+  Serial.print(leftMotorSpeed_s16);
+  Serial.print(" ");
+  Serial.println(rightMotorSpeed_s16);
+
+  getNumOfCycle( &cycleNumber_u64 );
+  getCycleTime( &cycleTime_u8 );
 
   // Stop the algorith if w are exit the maze
   if (   ( ultrasonicSensorData.front_f32 > DIST_FINISH )
       && ( ultrasonicSensorData.left_f32 > DIST_FINISH )
       && ( ultrasonicSensorData.right_f32 > DIST_FINISH )   )
   {
-    while (1)
-    {
-      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-    }
+    motors.setM1Speed( MOTOR_SPEED_STOPPED ); // prawy
+    motors.setM2Speed( MOTOR_SPEED_STOPPED ); 
+    while (1);
   }
   // Otherwise,if we are finished the job or we are unable to drive forward - change the job.
   else if (   (   ( ultrasonicSensorData.front_f32 < DIST_FRONT_COLLISION)  
@@ -134,7 +143,6 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
     finishCounter_u8++;
   }
 
-
   if ( false == wallDetected_b )
   {
     drivingForward();
@@ -165,11 +173,11 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
 
 static void drivingDistance( const float distance_f32 )
 {
-  static float prevDistance_f32 = 0.0F;
   static float prevFrontDist_f32;
   static float remainingDistance_f32;
+  static uint64_t prevCycleNumber_u64;         /* Cycle number when this functian was called last time */
 
-  if ( prevDistance_f32 != distance_f32 )
+  if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
   {
     remainingDistance_f32 = distance_f32;
   }
@@ -180,7 +188,6 @@ static void drivingDistance( const float distance_f32 )
     if ( remainingDistance_f32 <= 0.0F )
     {
       job_t = AWAIT;
-      prevDistance_f32 = 0.0F;
     }
     else 
     {
@@ -188,7 +195,7 @@ static void drivingDistance( const float distance_f32 )
     }
   }
 
-  prevDistance_f32 = distance_f32;
+  prevCycleNumber_u64 = cycleNumber_u64;
   prevFrontDist_f32 = ultrasonicSensorData.front_f32;
 }
 
@@ -200,50 +207,53 @@ static void drivingForward( void )
 
 static void turnLeft( void )
 {
-  static int leftDuration_s32; 
+  static uint64_t prevCycleNumber_u64; /* Cycle number when this functian was called last time */
+  static int16_t duration_s16; 
+  
+  if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
+  {
+    duration_s16 = 1000;
+    leftMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
+    rightMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
+  }
+  else if (duration_s16 <= 0)
+  {
+    leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+    rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+    job_t = AWAIT;
+  }
+  else 
+  {
+    duration_s16 -= cycleTime_u8;
+  }
 
-  if (prevJob_t != job_t)
-  {
-    leftDuration_s32 = 1000;
-  }
-  else
-  {
-    if (leftDuration_s32 > 0)
-    {
-      leftDuration_s32 -= cycleTime_u64;
-      leftMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
-      rightMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
-    }
-    else
-    {
-      job_t = FOLLOW_LEFT_WALL;
-      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-    }
-  }
+  prevCycleNumber_u64 = cycleNumber_u64;
 }
 
 static void turnRight( void )
 {
-  static int rightDuration_s32; 
+  static uint64_t prevCycleNumber_u64;
+  static int16_t rightDuration_s16; 
 
-  if (prevJob_t != job_t)
+  if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
   {
-    rightDuration_s32 = 1000;
+    rightDuration_s16 = 1000;
   }
   else
   {
-    if (rightDuration_s32 > 0)
+    if (rightDuration_s16 > 0)
     {
-      rightDuration_s32 -= cycleTime_u64;
       leftMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
       rightMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
+      rightDuration_s16 -= cycleTime_u8;
     }
     else
     {
-      job_t = FOLLOW_LEFT_WALL;
       leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
       rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      job_t = AWAIT;
     }
   }
+
+  prevCycleNumber_u64 = cycleNumber_u64;
 }

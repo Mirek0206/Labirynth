@@ -6,27 +6,23 @@
 #include "Sensors/ultrasonicSensor.h"
 #include "Sensors/bmm150.h"
 #include "Motors/motors.h"
-
-unsigned long cycleTime_u64;
-unsigned long previousCycleTime_u64 = 0;
+#include "Utils/cycle.h"
 
 void setup() 
 {
-  cycleTime_u64 = millis();
   Serial.begin(9600);
 
-  accelerometerInit();
+  //accelerometerInit();
   ultrasonicSensorInit();
   motorsInit();
 }
 
 void loop() 
 {
-  cycleTime_u64 = millis() - previousCycleTime_u64;
-  previousCycleTime_u64 = millis();
-
+  cycle();
+  
   // Main functions
-  accelerometerCycle();
+  //accelerometerCycle();
   ultrasonicSensorCycle();
   motorsCycle();
 }

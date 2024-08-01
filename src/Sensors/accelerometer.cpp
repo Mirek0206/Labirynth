@@ -2,9 +2,11 @@
 /* Includes                      */
 /*===============================*/
 
+#include <stdint.h>
 #include <Arduino.h>
 #include "Sensors/accelerometer.h"
 #include "Utils/calmanFilter.h"
+#include "Utils/cycle.h"
 
 /*===============================*/
 /* Local functions declarations  */
@@ -15,7 +17,6 @@
 /*===============================*/
 
 accelerometerData_t accelerometerData;
-extern unsigned long cycleTime_u64;
 
 /*===============================*/
 /* Functions definitions         */
@@ -37,21 +38,22 @@ void accelerometerInit( void )
 
 void accelerometerCycle( void )
 {
-    //float raw_axis;
-    float deltaTime_f32 = (float)cycleTime_u64 / 1000.0F;
+    uint8_t cycleTime_u8;
+    
+    getCycleTime( &cycleTime_u8 );
 
     if (fabs(accelerometerData.x_axis.value_f32) > ZERO_THRESHOLD)
-        accelerometerData.x_axis.velocity_f32 += accelerometerData.x_axis.value_f32 * deltaTime_f32;
+        accelerometerData.x_axis.velocity_f32 += accelerometerData.x_axis.value_f32 * cycleTime_u8;
     else
         accelerometerData.x_axis.velocity_f32 = 0.0F;
 
     if (fabs(accelerometerData.y_axis.value_f32) > ZERO_THRESHOLD)
-        accelerometerData.y_axis.velocity_f32 += accelerometerData.y_axis.value_f32 * deltaTime_f32;
+        accelerometerData.y_axis.velocity_f32 += accelerometerData.y_axis.value_f32 * cycleTime_u8;
     else
         accelerometerData.y_axis.velocity_f32 = 0.0F;
 
     if (fabs(accelerometerData.z_axis.value_f32) > ZERO_THRESHOLD)
-        accelerometerData.z_axis.velocity_f32 += accelerometerData.z_axis.value_f32 * deltaTime_f32;
+        accelerometerData.z_axis.velocity_f32 += accelerometerData.z_axis.value_f32 * cycleTime_u8;
     else
         accelerometerData.z_axis.velocity_f32 = 0.0F;
 

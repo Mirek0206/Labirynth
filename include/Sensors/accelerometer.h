@@ -44,7 +44,6 @@ typedef struct accelerometerData_tag
 /*===============================*/
 
 extern accelerometerData_t accelerometerData;
-extern unsigned long cycleTime_u64;
 
 /*===============================*/
 /* Global functions declarations */
