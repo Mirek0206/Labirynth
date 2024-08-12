@@ -20,9 +20,11 @@
 /*===============================*/
 /* Constant values               */
 /*===============================*/
+#define SPEED_MULTI 1.25F
 
-#define MOTOR_SPEED_MAX 100
-#define MOTOR_SPEED_MIN 25
+#define MOTOR_DRIVING_SPEED_MAX 100
+#define MOTOR_DRIVING_SPEED_MIN 25
+#define MOTOR_TURNING_SPEED 100
 #define MOTOR_SPEED_STOPPED 0
 
 #define DIST_SIDE_MIN 7.0F

@@ -5,9 +5,10 @@
 #include <stdint.h>
 #include <DRV8835MotorShield.h>
 #include "Motors/motors.h"
-#include "Sensors/accelerometer.h"
 #include "Sensors/ultrasonicSensor.h"
+#include "Sensors/magnetometer.h"
 #include "Utils/cycle.h"
+#include "config.h"
 
 /*===============================*/
 /* Local functions declarations  */
@@ -33,7 +34,7 @@ DRV8835MotorShield motors( MOTOR_SHIELD_M1_DIR,
                            MOTOR_SHIELD_M2_PWM );
 
 uint64_t cycleNumber_u64;    /* Number of the current cycle */
-uint8_t cycleTime_u8;      /* Previous cycle duration [ms] */
+uint8_t cycleTime_u8;        /* Previous cycle duration [ms] */
 int16_t leftMotorSpeed_s16;  /* Speed for left motor */
 int16_t rightMotorSpeed_s16; /* Speed for right motor */
 motorsJob_t job_t;
@@ -54,11 +55,8 @@ void motorsInit( void )
 void motorsCycle( void )
 {
   motorsJob_t currentCycleJob_t = job_t;
+
   Serial.print(currentCycleJob_t);
-  Serial.print(" ");
-  Serial.print(leftMotorSpeed_s16);
-  Serial.print(" ");
-  Serial.println(rightMotorSpeed_s16);
 
   getNumOfCycle( &cycleNumber_u64 );
   getCycleTime( &cycleTime_u8 );
@@ -66,7 +64,9 @@ void motorsCycle( void )
   // Stop the algorith if w are exit the maze
   if (   ( ultrasonicSensorData.front_f32 > DIST_FINISH )
       && ( ultrasonicSensorData.left_f32 > DIST_FINISH )
-      && ( ultrasonicSensorData.right_f32 > DIST_FINISH )   )
+      && ( ultrasonicSensorData.right_f32 > DIST_FINISH )   
+      && ( job_t != TURN_LEFT)
+      && ( job_t != TURN_RIGHT)   )
   {
     motors.setM1Speed( MOTOR_SPEED_STOPPED ); // prawy
     motors.setM2Speed( MOTOR_SPEED_STOPPED ); 
@@ -123,6 +123,7 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
 {
   static uint8_t finishCounter_u8;  
   static boolean wallDetected_b;
+  static float prevWallDist_f32;
   float distanceDiff_f32;
 
   // If job changed - reset data
@@ -130,9 +131,10 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   {
     wallDetected_b = false;
     finishCounter_u8 = 0U;
+    prevWallDist_f32 = DIST_SIDE_MAX;
   }
   // If wall detected - set flag and reset final counter
-  else if ( wallDistance_f32 <= DIST_SIDE_MAX ) 
+  else if ( wallDistance_f32 <= DIST_SIDE_MAX && ( wallDistance_f32 - prevWallDist_f32 ) < 5.0F ) 
   {
     wallDetected_b = true;
     finishCounter_u8 = 0U;
@@ -147,28 +149,30 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   {
     drivingForward();
   }
-  else if ( finishCounter_u8 < 3U  )
+  else if ( finishCounter_u8 < 3U )
   {
     distanceDiff_f32 = wallDistance_f32 - DIST_SIDE_MIN;
     
     if ( distanceDiff_f32 > DIST_SIDE_OFFSET )
     {
-      *firstMotorSpeed_s16 = MOTOR_SPEED_MAX - (int16_t)( distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
-      *secondMotorSpeed_s16 = MOTOR_SPEED_MAX;
+      *firstMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX - (int16_t)( distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
+      *secondMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX;
     }
     else if ( -distanceDiff_f32 > DIST_SIDE_OFFSET )
     {
-      *firstMotorSpeed_s16 = MOTOR_SPEED_MAX;
-      *secondMotorSpeed_s16 = MOTOR_SPEED_MAX - (int16_t)( -distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
+      *firstMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX;
+      *secondMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX - (int16_t)( -distanceDiff_f32 * SPEED_EQUATION_A + SPEED_EQUATION_B );
     }
 
-    *firstMotorSpeed_s16 = max( MOTOR_SPEED_MIN, min( MOTOR_SPEED_MAX , *firstMotorSpeed_s16) );
-    *secondMotorSpeed_s16 = max( MOTOR_SPEED_MIN, min( MOTOR_SPEED_MAX , *secondMotorSpeed_s16) );
+    *firstMotorSpeed_s16 = max( MOTOR_DRIVING_SPEED_MIN, min( MOTOR_DRIVING_SPEED_MAX , *firstMotorSpeed_s16) );
+    *secondMotorSpeed_s16 = max( MOTOR_DRIVING_SPEED_MIN, min( MOTOR_DRIVING_SPEED_MAX , *secondMotorSpeed_s16) );
   }
   else
   {
     drivingDistance( DIST_AFTER_WALL_FOLLOWING );
   }
+
+  prevWallDist_f32 = wallDistance_f32;
 }
 
 static void drivingDistance( const float distance_f32 )
@@ -201,10 +205,11 @@ static void drivingDistance( const float distance_f32 )
 
 static void drivingForward( void )
 {
-  leftMotorSpeed_s16 = MOTOR_SPEED_MAX;
-  rightMotorSpeed_s16 = MOTOR_SPEED_MAX - 5;
+  leftMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX;
+  rightMotorSpeed_s16 = MOTOR_DRIVING_SPEED_MAX;
 }
 
+#ifndef MAGNETOMETER
 static void turnLeft( void )
 {
   static uint64_t prevCycleNumber_u64; /* Cycle number when this functian was called last time */
@@ -213,8 +218,8 @@ static void turnLeft( void )
   if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
   {
     duration_s16 = 1000;
-    leftMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
-    rightMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
+    leftMotorSpeed_s16 = -MOTOR_TURNING_SPEED;
+    rightMotorSpeed_s16 = MOTOR_TURNING_SPEED;
   }
   else if (duration_s16 <= 0)
   {
@@ -243,8 +248,8 @@ static void turnRight( void )
   {
     if (rightDuration_s16 > 0)
     {
-      leftMotorSpeed_s16 = MOTOR_SPEED_MAX * 0.75F;
-      rightMotorSpeed_s16 = -MOTOR_SPEED_MAX * 0.75F;
+      leftMotorSpeed_s16 = MOTOR_TURNING_SPEED;
+      rightMotorSpeed_s16 = -MOTOR_TURNING_SPEED;
       rightDuration_s16 -= cycleTime_u8;
     }
     else
@@ -257,3 +262,78 @@ static void turnRight( void )
 
   prevCycleNumber_u64 = cycleNumber_u64;
 }
+#else
+static void turnLeft( void )
+{
+  static uint64_t prevCycleNumber_u64; /* Cycle number when this functian was called last time */
+  static float headingOffset_f32;     /* Azymut początkowy */
+  float currentHeading_f32;
+  float headingDiff_f32;
+  
+  getAzimuth( &currentHeading_f32 );
+
+  // If we have the new turning, set/reset important variables
+  if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
+  { 
+    headingOffset_f32 = currentHeading_f32;
+
+    leftMotorSpeed_s16 = -MOTOR_TURNING_SPEED;
+    rightMotorSpeed_s16 = MOTOR_TURNING_SPEED;
+  }
+  else 
+  {
+    headingDiff_f32 = currentHeading_f32 - headingOffset_f32;
+    
+    if (headingDiff_f32 < 0.0F)
+    {
+      headingDiff_f32 += 360.0F;
+    }
+    
+    if ( headingDiff_f32 > 80.0F )
+    {
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      job_t = AWAIT;
+    }
+  }
+
+  prevCycleNumber_u64 = cycleNumber_u64;
+}
+
+static void turnRight( void )
+{
+  static uint64_t prevCycleNumber_u64; /* Cycle number when this functian was called last time */
+  static float headingOffset_f32;     /* Azymut początkowy */
+  float currentHeading_f32;
+  float headingDiff_f32;
+  
+  getAzimuth( &currentHeading_f32 );
+
+  // If we have the new turning, set/reset important variables
+  if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
+  { 
+    headingOffset_f32 = currentHeading_f32;
+
+    leftMotorSpeed_s16 = MOTOR_TURNING_SPEED;
+    rightMotorSpeed_s16 = -MOTOR_TURNING_SPEED;
+  }
+  else 
+  {
+    headingDiff_f32 = headingOffset_f32 - currentHeading_f32;
+    
+    if (headingDiff_f32 < 0.0F)
+    {
+      headingDiff_f32 += 360.0F;
+    }
+    
+    if ( headingDiff_f32 > 80.0F )
+    {
+      leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
+      job_t = AWAIT;
+    }
+  }
+
+  prevCycleNumber_u64 = cycleNumber_u64;
+}
+#endif

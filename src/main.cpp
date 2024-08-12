@@ -1,28 +1,33 @@
 #include <Arduino.h>
 #include <stdint.h>
-
 #include <DRV8835MotorShield.h>
-#include "Sensors/accelerometer.h"
+
+#include "Sensors/magnetometer.h"
 #include "Sensors/ultrasonicSensor.h"
-#include "Sensors/bmm150.h"
 #include "Motors/motors.h"
 #include "Utils/cycle.h"
+#include "config.h"
 
 void setup() 
 {
   Serial.begin(9600);
 
-  //accelerometerInit();
-  ultrasonicSensorInit();
-  motorsInit();
+  #ifdef MAGNETOMETER
+    magnetometerInit();
+  #endif
+
+  #ifdef ULTRASONIC_SENSORS
+    ultrasonicSensorInit();
+  #endif
+
+  #ifdef MOTORS
+    motorsInit();
+  #endif            
 }
 
 void loop() 
 {
-  cycle();
-  
-  // Main functions
-  //accelerometerCycle();
-  ultrasonicSensorCycle();
-  motorsCycle();
+    cycle();
+    ultrasonicSensorCycle();
+    motorsCycle();
 }
