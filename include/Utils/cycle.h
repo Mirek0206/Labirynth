@@ -21,8 +21,10 @@
 
 void cycle( void );
 
+void increaseCycle( void );
+
 void getNumOfCycle( uint64_t * const numOfCycle_u64 );
 
-void getCycleTime( uint8_t * const cycleTime_u8 );
+uint8_t getCycleTime( void );
 
 #endif

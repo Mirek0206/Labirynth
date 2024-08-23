@@ -44,5 +44,5 @@ static float measureDistance( const uint8_t trigPin_u8, const uint8_t echoPin_u8
   digitalWrite( trigPin_u8, LOW );
   digitalWrite( echoPin_u8, HIGH );
 
-  return ( pulseIn( echoPin_u8, HIGH ) / 58.0F );   
+  return ( pulseIn( echoPin_u8, HIGH ) / 58.0F );
 };

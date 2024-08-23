@@ -22,7 +22,10 @@ void cycle( void )
     /* Calcuulate cycle duration */
     cycleDuration_u8 = millis() - previousCycleTime_u64;
     previousCycleTime_u64 = millis();
+}
 
+void increaseCycle( void )
+{
     /* Increase cycle number */ 
     cycle_u64++;
 }
@@ -32,7 +35,7 @@ void getNumOfCycle( uint64_t * const numOfCycle_u64 )
     *numOfCycle_u64 = cycle_u64;
 }
 
-void getCycleTime( uint8_t * const cycleTime_u8 )
+uint8_t getCycleTime( void )
 {
-    *cycleTime_u8 = cycleDuration_u8;
+    return cycleDuration_u8;
 }

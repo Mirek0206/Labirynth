@@ -27,7 +27,17 @@ void setup()
 
 void loop() 
 {
+    static uint8_t mainCycleTime_u8;
+
     cycle();
-    ultrasonicSensorCycle();
-    motorsCycle();
+    mainCycleTime_u8 += getCycleTime();
+
+    if (mainCycleTime_u8 >= TASK_5MS)
+    {
+      increaseCycle();
+      ultrasonicSensorCycle();
+      motorsCycle();
+
+      mainCycleTime_u8 = 0U;
+    }
 }

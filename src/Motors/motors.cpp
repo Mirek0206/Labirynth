@@ -59,7 +59,7 @@ void motorsCycle( void )
   Serial.print(currentCycleJob_t);
 
   getNumOfCycle( &cycleNumber_u64 );
-  getCycleTime( &cycleTime_u8 );
+  cycleTime_u8 = getCycleTime();
 
   // Stop the algorith if w are exit the maze
   if (   ( ultrasonicSensorData.front_f32 > DIST_FINISH )
@@ -121,35 +121,36 @@ void motorsCycle( void )
 
 static void followWall( const float wallDistance_f32, int16_t * const firstMotorSpeed_s16, int16_t * const secondMotorSpeed_s16 )
 {
-  static uint8_t finishCounter_u8;  
+         float distanceDiff_f32;
   static boolean wallDetected_b;
-  static float prevWallDist_f32;
-  float distanceDiff_f32;
+         boolean wallDisappear_b = false;
 
   // If job changed - reset data
   if ( prevJob_t != job_t ) 
   {
     wallDetected_b = false;
-    finishCounter_u8 = 0U;
-    prevWallDist_f32 = DIST_SIDE_MAX;
+    wallDisappear_b = false;
   }
   // If wall detected - set flag and reset final counter
-  else if ( wallDistance_f32 <= DIST_SIDE_MAX && ( wallDistance_f32 - prevWallDist_f32 ) < 5.0F ) 
+  else if (   (   ( wallDetected_b == false )
+               && ( wallDistance_f32 <= DIST_SIDE_MAX )   )
+           || (   ( wallDetected_b == true )
+               && ( wallDistance_f32 <= DIST_SIDE_MAX_CONTINUOUS )   )   )
   {
     wallDetected_b = true;
-    finishCounter_u8 = 0U;
+    wallDisappear_b = false;
   }
   // If wall have been detected and in current cycle wall dissapeared - start counting final counter
   else if ( true == wallDetected_b )
   {
-    finishCounter_u8++;
+    wallDisappear_b = true;
   }
 
   if ( false == wallDetected_b )
   {
     drivingForward();
   }
-  else if ( finishCounter_u8 < 3U )
+  else if ( wallDisappear_b != true )
   {
     distanceDiff_f32 = wallDistance_f32 - DIST_SIDE_MIN;
     
@@ -170,9 +171,7 @@ static void followWall( const float wallDistance_f32, int16_t * const firstMotor
   else
   {
     drivingDistance( DIST_AFTER_WALL_FOLLOWING );
-  }
-
-  prevWallDist_f32 = wallDistance_f32;
+  }  
 }
 
 static void drivingDistance( const float distance_f32 )
@@ -217,7 +216,7 @@ static void turnLeft( void )
   
   if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
   {
-    duration_s16 = 1000;
+    duration_s16 = TURNING_TIME;
     leftMotorSpeed_s16 = -MOTOR_TURNING_SPEED;
     rightMotorSpeed_s16 = MOTOR_TURNING_SPEED;
   }
@@ -225,7 +224,8 @@ static void turnLeft( void )
   {
     leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
     rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-    job_t = AWAIT;
+
+    job_t = ( FOLLOW_HAND == 1U ) ? FOLLOW_LEFT_WALL : AWAIT;
   }
   else 
   {
@@ -242,7 +242,7 @@ static void turnRight( void )
 
   if ( prevCycleNumber_u64 != ( cycleNumber_u64 - 1U ) )
   {
-    rightDuration_s16 = 1000;
+    rightDuration_s16 = TURNING_TIME;
   }
   else
   {
@@ -256,7 +256,7 @@ static void turnRight( void )
     {
       leftMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
       rightMotorSpeed_s16 = MOTOR_SPEED_STOPPED;
-      job_t = AWAIT;
+      job_t = ( FOLLOW_HAND == 2U ) ? FOLLOW_RIGHT_WALL : AWAIT;
     }
   }
 
